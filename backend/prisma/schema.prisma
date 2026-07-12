@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model emprestimos {
+  id                    Int               @id @default(autoincrement())
+  item_id               Int?
+  membro_autorizador_id Int?
+  responsavel_externo   String            @db.VarChar(100)
+  data_saida            DateTime          @default(now()) @db.Timestamp(6)
+  previsao_devolucao    DateTime?         @db.Timestamp(6)
+  data_devolucao        DateTime?         @db.Timestamp(6)
+  itens_inventario      itens_inventario? @relation(fields: [item_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  membros               membros?          @relation(fields: [membro_autorizador_id], references: [id], onUpdate: NoAction)
+}
+
+model itens_inventario {
+  id                 Int                 @id @default(autoincrement())
+  nome               String              @db.VarChar(100)
+  categoria          categoria_item_enum
+  status             status_item_enum    @default(Dispon_vel)
+  estado_conservacao String?             @db.VarChar(255)
+  data_aquisicao     DateTime?           @db.Date
+  emprestimos        emprestimos[]
+}
+
+model membros {
+  id                                      Int                @id @default(autoincrement())
+  apelido                                 String             @unique @db.VarChar(50)
+  nome_completo                           String             @db.VarChar(100)
+  telefone                                String?            @db.VarChar(20)
+  email                                   String?            @unique @db.VarChar(100)
+  curso                                   String?            @db.VarChar(100)
+  hierarquia                              hierarquia_enum
+  status                                  status_membro_enum @default(Ativo)
+  data_entrada                            DateTime           @db.Date
+  data_saida                              DateTime?          @db.Date
+  emprestimos                             emprestimos[]
+  punicoes                                punicoes[]
+  tarefas_tarefas_criador_idTomembros     tarefas[]          @relation("tarefas_criador_idTomembros")
+  tarefas_tarefas_responsavel_idTomembros tarefas[]          @relation("tarefas_responsavel_idTomembros")
+}
+
+model punicoes {
+  id             Int       @id @default(autoincrement())
+  membro_id      Int?
+  tarefa_id      Int?
+  motivo         String    @db.VarChar(255)
+  data_aplicacao DateTime? @default(now()) @db.Timestamp(6)
+  membros        membros?  @relation(fields: [membro_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tarefas        tarefas?  @relation(fields: [tarefa_id], references: [id], onUpdate: NoAction)
+}
+
+model tarefas {
+  id                                      Int                @id @default(autoincrement())
+  descricao                               String             @db.VarChar(255)
+  criador_id                              Int?
+  responsavel_id                          Int?
+  status                                  status_tarefa_enum @default(Pendente)
+  prazo                                   DateTime           @db.Timestamp(6)
+  data_conclusao                          DateTime?          @db.Timestamp(6)
+  punicoes                                punicoes[]
+  membros_tarefas_criador_idTomembros     membros?           @relation("tarefas_criador_idTomembros", fields: [criador_id], references: [id], onUpdate: NoAction)
+  membros_tarefas_responsavel_idTomembros membros?           @relation("tarefas_responsavel_idTomembros", fields: [responsavel_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+enum categoria_item_enum {
+  M_veis           @map("Móveis")
+  Eletrodom_sticos @map("Eletrodomésticos")
+  Eventos
+  Ferramentas
+  Estudos
+}
+
+enum hierarquia_enum {
+  Bixo
+  Semi_bixo @map("Semi-bixo")
+  Morador
+  Decano
+}
+
+enum status_item_enum {
+  Dispon_vel    @map("Disponível")
+  Emprestado
+  Em_Manuten__o @map("Em Manutenção")
+  Descartado
+}
+
+enum status_membro_enum {
+  Ativo
+  Inativo
+  Afastado
+}
+
+enum status_tarefa_enum {
+  Pendente
+  Em_Andamento @map("Em Andamento")
+  Conclu_da    @map("Concluída")
+  Atrasada
+}
