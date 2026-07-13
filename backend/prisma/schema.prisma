@@ -29,20 +29,20 @@ model itens_inventario {
 }
 
 model membros {
-  id                                      Int                @id @default(autoincrement())
-  apelido                                 String             @unique @db.VarChar(50)
-  nome_completo                           String             @db.VarChar(100)
-  telefone                                String?            @db.VarChar(20)
-  email                                   String?            @unique @db.VarChar(100)
-  curso                                   String?            @db.VarChar(100)
-  hierarquia                              hierarquia_enum
-  status                                  status_membro_enum @default(Ativo)
-  data_entrada                            DateTime           @db.Date
-  data_saida                              DateTime?          @db.Date
-  emprestimos                             emprestimos[]
-  punicoes                                punicoes[]
-  tarefas_tarefas_criador_idTomembros     tarefas[]          @relation("tarefas_criador_idTomembros")
-  tarefas_tarefas_responsavel_idTomembros tarefas[]          @relation("tarefas_responsavel_idTomembros")
+  id                                  Int                    @id @default(autoincrement())
+  apelido                             String                 @unique @db.VarChar(50)
+  nome_completo                       String                 @db.VarChar(100)
+  telefone                            String?                @db.VarChar(20)
+  email                               String?                @unique @db.VarChar(100)
+  curso                               String?                @db.VarChar(100)
+  hierarquia                          hierarquia_enum
+  status                              status_membro_enum     @default(Ativo)
+  data_entrada                        DateTime               @db.Date
+  data_saida                          DateTime?              @db.Date
+  emprestimos                         emprestimos[]
+  punicoes                            punicoes[]
+  tarefas_tarefas_criador_idTomembros tarefas[]              @relation("tarefas_criador_idTomembros")
+  tarefas_responsaveis                tarefas_responsaveis[]
 }
 
 model punicoes {
@@ -56,16 +56,25 @@ model punicoes {
 }
 
 model tarefas {
-  id                                      Int                @id @default(autoincrement())
-  descricao                               String             @db.VarChar(255)
-  criador_id                              Int?
-  responsavel_id                          Int?
-  status                                  status_tarefa_enum @default(Pendente)
-  prazo                                   DateTime           @db.Timestamp(6)
-  data_conclusao                          DateTime?          @db.Timestamp(6)
-  punicoes                                punicoes[]
-  membros_tarefas_criador_idTomembros     membros?           @relation("tarefas_criador_idTomembros", fields: [criador_id], references: [id], onUpdate: NoAction)
-  membros_tarefas_responsavel_idTomembros membros?           @relation("tarefas_responsavel_idTomembros", fields: [responsavel_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                                  Int                    @id @default(autoincrement())
+  titulo                              String                 @db.VarChar(100)
+  descricao                           String                 @db.VarChar(255)
+  criador_id                          Int?
+  status                              status_tarefa_enum     @default(Pendente)
+  prazo                               DateTime               @db.Timestamp(6)
+  data_conclusao                      DateTime?              @db.Timestamp(6)
+  punicoes                            punicoes[]
+  membros_tarefas_criador_idTomembros membros?               @relation("tarefas_criador_idTomembros", fields: [criador_id], references: [id], onUpdate: NoAction)
+  tarefas_responsaveis                tarefas_responsaveis[]
+}
+
+model tarefas_responsaveis {
+  tarefa_id Int
+  membro_id Int
+  membros   membros @relation(fields: [membro_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tarefas   tarefas @relation(fields: [tarefa_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([tarefa_id, membro_id])
 }
 
 enum categoria_item_enum {
