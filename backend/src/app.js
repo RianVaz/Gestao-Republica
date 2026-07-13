@@ -5,6 +5,7 @@ const cors = require('cors');
 // Importando rotas
 const membrosRoutes = require('./routes/membrosRoutes');
 const tarefasRoutes = require('./routes/tarefasRoutes');
+const punicoesRoutes = require('./routes/punicoesRoutes');
 
 const app = express();
 
@@ -19,5 +20,6 @@ app.use((req, res, next) => {
 // Rotas
 app.use('/membros', membrosRoutes);
 app.use('/tarefas', tarefasRoutes);
+app.use('/punicoes', punicoesRoutes);
 
 module.exports = app;
