@@ -6,6 +6,9 @@ const cors = require('cors');
 const membrosRoutes = require('./routes/membrosRoutes');
 const tarefasRoutes = require('./routes/tarefasRoutes');
 const punicoesRoutes = require('./routes/punicoesRoutes');
+const itensRoutes = require('./routes/itensRoutes');
+const emprestimosRoutes = require('./routes/emprestimosRoutes');
+const iniciarRoboDeTarefas = require('./jobs/verificarAtrasos');
 
 const app = express();
 
@@ -21,5 +24,8 @@ app.use((req, res, next) => {
 app.use('/membros', membrosRoutes);
 app.use('/tarefas', tarefasRoutes);
 app.use('/punicoes', punicoesRoutes);
+app.use('/itens', itensRoutes);
+app.use('/emprestimos', emprestimosRoutes);
+iniciarRoboDeTarefas();
 
 module.exports = app;

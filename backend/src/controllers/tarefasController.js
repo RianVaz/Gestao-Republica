@@ -1,4 +1,5 @@
 const tarefasModel = require('../models/tarefasModel');
+const tarefasService = require('../services/tarefasService');
 
 const listarTarefas = async (req, res) => {
     try {
@@ -67,6 +68,11 @@ const atualizarTarefa = async (req, res) => {
         // Converte data_conclusao se a tarefa for marcada como concluída
         if (dadosAtualizados.data_conclusao) {
             dadosAtualizados.data_conclusao = new Date(dadosAtualizados.data_conclusao);
+        }
+
+        if (dadosAtualizados.status === 'Atrasada') {
+            await tarefasService.processarAtrasoDeTarefa(id);
+            delete dadosAtualizados.status; // Remove do objeto, pois o service já atualizou o banco!
         }
 
         const tarefaAtualizada = await tarefasModel.atualizar(id, dadosAtualizados, responsaveis);
