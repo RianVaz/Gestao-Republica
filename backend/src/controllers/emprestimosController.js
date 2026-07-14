@@ -34,7 +34,16 @@ const criarEmprestimo = async (req, res) => {
             return res.status(400).json({ erro: 'Campos obrigatórios ausentes.' });
         }
 
-        // Verifica se o item existe e se está disponível para empréstimo
+        if (previsao_devolucao) {
+            const dataPrevisao = new Date(previsao_devolucao);
+            const dataAtual = new Date();
+            dataAtual.setHours(0, 0, 0, 0);
+
+            if (dataPrevisao < dataAtual) {
+                return res.status(400).json({ erro: 'A previsão de devolução não pode ser uma data no passado.' });
+            }
+        }
+        
         const item = await itensModel.buscarPorId(item_id);
         if (!item) {
             return res.status(404).json({ erro: 'Item não encontrado no inventário.' });
@@ -64,12 +73,17 @@ const atualizarEmprestimo = async (req, res) => {
         const { id } = req.params;
         const dadosAtualizados = req.body;
 
+        const emprestimoAtual = await emprestimosModel.buscarPorId(id);
+        if (!emprestimoAtual) {
+            return res.status(404).json({ erro: 'Empréstimo não encontrado.' });
+        }
+
         if (dadosAtualizados.previsao_devolucao) {
             dadosAtualizados.previsao_devolucao = new Date(dadosAtualizados.previsao_devolucao);
         }
         if (dadosAtualizados.data_devolucao) {
             dadosAtualizados.data_devolucao = new Date(dadosAtualizados.data_devolucao);
-            dadosAtualizados.status = 'Devolvido';
+            await itensModel.atualizar(emprestimoAtual.item_id, { status: 'Disponível' });
         }
 
         const emprestimoAtualizado = await emprestimosModel.atualizar(id, dadosAtualizados);

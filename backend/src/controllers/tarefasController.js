@@ -30,7 +30,14 @@ const criarTarefa = async (req, res) => {
     try {
         const { titulo, descricao, prazo, status, responsaveis, criador_id } = req.body;
 
-        // Validação
+        const dataPrazo = new Date(prazo);
+        const dataAtual = new Date();
+        dataAtual.setHours(0, 0, 0, 0); // Zera as horas para comparar apenas o dia
+
+        if (dataPrazo < dataAtual) {
+            return res.status(400).json({ erro: 'O prazo da tarefa não pode ser uma data no passado.' });
+        }
+
         if (!titulo || !responsaveis || !Array.isArray(responsaveis) || responsaveis.length === 0 || !prazo) {
             return res.status(400).json({ erro: 'Campos obrigatórios ausentes: titulo, responsaveis (array) e prazo.' });
         }
