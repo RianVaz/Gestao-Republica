@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+/* Cor de fundo padrão da nossa paleta */
+body {
+  background-color: #030712;
+  color: #f3f4f6;
+}
