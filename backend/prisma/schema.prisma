@@ -90,6 +90,8 @@ enum hierarquia_enum {
   Semi_bixo @map("Semi-bixo")
   Morador
   Decano
+  Ex_morador @map("Ex-morador")
+  Agregado
 }
 
 enum status_item_enum {
