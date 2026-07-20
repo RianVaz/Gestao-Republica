@@ -39,6 +39,7 @@ model membros {
   status                              status_membro_enum     @default(Ativo)
   data_entrada                        DateTime               @db.Date
   data_saida                          DateTime?              @db.Date
+  senha                               String?                @db.VarChar(255) // ⬅️ NOVO CAMPO ADICIONADO
   emprestimos                         emprestimos[]
   punicoes                            punicoes[]
   tarefas_tarefas_criador_idTomembros tarefas[]              @relation("tarefas_criador_idTomembros")

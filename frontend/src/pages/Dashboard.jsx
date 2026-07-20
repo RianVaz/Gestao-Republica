@@ -2,44 +2,49 @@ import { useState, useEffect } from 'react';
 import { Users, ClipboardList, AlertTriangle, ArrowRightLeft, Clock } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import TaskCard from '../components/TaskCard';
-
-// SIMULAÇÃO DE LOGIN: Mesmo ID usado na página de Tarefas e Punições
-const USUARIO_LOGADO_ID = 2; 
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Dashboard({ setActiveTab }) {
+  const { usuario } = useAuth();
+  const USUARIO_LOGADO_ID = usuario?.id;
+
   const [tarefas, setTarefas] = useState([]);
   const [membrosAtivos, setMembrosAtivos] = useState(0);
-  const [minhasPunicoes, setMinhasPunicoes] = useState(0); // Novo estado para as punições
+  const [minhasPunicoes, setMinhasPunicoes] = useState(0);
+  const [itensEmprestados, setItensEmprestados] = useState(0); 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const buscarDados = async () => {
       try {
-        // Busca Tarefas, Membros e Punições simultaneamente
-        const [resTarefas, resMembros, resPunicoes] = await Promise.all([
+        const [resTarefas, resMembros, resPunicoes, resEmprestimos] = await Promise.all([
           fetch('http://localhost:3001/tarefas'),
           fetch('http://localhost:3001/membros'),
-          fetch('http://localhost:3001/punicoes') // Nova requisição
+          fetch('http://localhost:3001/punicoes'),
+          fetch('http://localhost:3001/emprestimos') 
         ]);
 
-        if (resTarefas.ok && resMembros.ok && resPunicoes.ok) {
+        if (resTarefas.ok && resMembros.ok && resPunicoes.ok && resEmprestimos.ok) {
           const dadosTarefas = await resTarefas.json();
           const dadosMembros = await resMembros.json();
           const dadosPunicoes = await resPunicoes.json();
+          const dadosEmprestimos = await resEmprestimos.json();
 
           setTarefas(dadosTarefas);
           
-          // Conta apenas os moradores reais e ativos para a estatística
+          // Moradores Ativos
           const ativos = dadosMembros.filter(m => 
-            m.status?.toLowerCase() === 'ativo' && 
-            m.hierarquia !== 'Agregado' && 
-            m.hierarquia !== 'Ex_morador'
+            m.status?.toLowerCase() === 'ativo' && m.hierarquia !== 'Agregado' && m.hierarquia !== 'Ex_morador'
           );
           setMembrosAtivos(ativos.length);
 
-          // Filtra as punições para contar apenas as do usuário logado
+          // Punições do Usuário
           const punicoesDoUsuario = dadosPunicoes.filter(p => p.membro_id === USUARIO_LOGADO_ID);
           setMinhasPunicoes(punicoesDoUsuario.length);
+
+          // Itens Emprestados (Na rua = sem data de devolução)
+          const ativosNaRua = dadosEmprestimos.filter(e => !e.data_devolucao);
+          setItensEmprestados(ativosNaRua.length);
         }
       } catch (erro) {
         console.error("Erro ao buscar dados do Dashboard:", erro);
@@ -48,36 +53,35 @@ export default function Dashboard({ setActiveTab }) {
       }
     };
 
-    buscarDados();
-  }, []);
+    if (USUARIO_LOGADO_ID) {
+      buscarDados();
+    }
+  }, [USUARIO_LOGADO_ID]);
 
-  // --- REGRA DE EXIBIÇÃO DAS TAREFAS ---
-  // Filtra apenas as tarefas criadas pelo usuário logado OU atribuídas a ele
+  // --- REGRA DE EXIBIÇÃO DAS TAREFAS
   const minhasTarefas = tarefas.filter(tarefa => {
     const souCriador = tarefa.criador_id === USUARIO_LOGADO_ID;
     const souResponsavel = tarefa.tarefas_responsaveis?.some(tr => tr.membro_id === USUARIO_LOGADO_ID);
-    return souCriador || souResponsavel;
+    
+    // Ignora as tarefas que já estão concluídas
+    const naoEstaConcluida = !['Concluída', 'Concluida', 'Conclu_da'].includes(tarefa.status);
+
+    return (souCriador || souResponsavel) && naoEstaConcluida;
   });
 
-  // Conta quantas das MINHAS tarefas estão pendentes, em andamento ou atrasadas
-  const minhasTarefasPendentes = minhasTarefas.filter(t => 
-    t.status === 'Pendente' || t.status === 'Em_Andamento' || t.status === 'Em andamento' || t.status === 'Atrasada'
-  ).length;
+  const minhasTarefasPendentes = minhasTarefas.length; // Como já filtramos as concluídas, todas aqui são pendentes
 
-  // Formatação de data específica para o card reduzido do Dashboard (Ex: "15/Jul")
   const formatarDataCurta = (dataIso) => {
     if (!dataIso) return 'Sem data';
     const data = new Date(dataIso);
     data.setMinutes(data.getMinutes() + data.getTimezoneOffset());
     
-    // Verifica se a data é hoje
     const hoje = new Date();
     if (data.toDateString() === hoje.toDateString()) return 'Hoje';
 
     return data.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('. de', '').replace('.', '');
   };
 
-  // Formatação do status para remover underlines na tela
   const formatarStatus = (status) => {
     if (status === 'Conclu_da' || status === 'Concluida') return 'Concluída';
     return status.replace('_', ' ');
@@ -116,12 +120,11 @@ export default function Dashboard({ setActiveTab }) {
             color="red" 
             onClick={() => setActiveTab('punicoes')} 
           />
-          {/* Valor estático até criarmos o módulo de Empréstimos */}
           <StatCard 
             title="Itens Emprestados" 
-            value="0" 
+            value={itensEmprestados.toString()} 
             icon={ArrowRightLeft} 
-            color="purple" 
+            color="blue" 
             onClick={() => setActiveTab('emprestimos')} 
           />
         </div>
@@ -141,8 +144,6 @@ export default function Dashboard({ setActiveTab }) {
           {minhasTarefas.length > 0 ? (
             minhasTarefas.map((tarefa) => {
               const isUrgente = tarefa.status === 'Atrasada';
-              
-              // Extrai as siglas dos responsáveis (Ex: "RV", "CT") para os avatares redondos
               const siglas = tarefa.tarefas_responsaveis?.map(tr => 
                 tr.membro?.apelido?.substring(0, 2).toUpperCase() || 'M'
               ) || [];
@@ -161,7 +162,7 @@ export default function Dashboard({ setActiveTab }) {
           ) : (
             <div className="flex flex-col items-center justify-center py-10 text-gray-500">
               <ClipboardList className="w-10 h-10 mb-3 opacity-20" />
-              <p className="text-sm font-medium">Você não possui tarefas recentes.</p>
+              <p className="text-sm font-medium">Você não possui tarefas pendentes no momento.</p>
             </div>
           )}
         </div>

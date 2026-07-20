@@ -65,9 +65,8 @@ const criarTarefa = async (req, res) => {
 const atualizarTarefa = async (req, res) => {
     try {
         const { id } = req.params;
-        const { responsaveis, ...dadosAtualizados } = req.body; // Separa os responsáveis do resto dos dados
+        const { responsaveis, ...dadosAtualizados } = req.body;
 
-        // Converte a data se ela vier na edição
         if (dadosAtualizados.prazo) {
             dadosAtualizados.prazo = new Date(dadosAtualizados.prazo);
         }
@@ -79,7 +78,7 @@ const atualizarTarefa = async (req, res) => {
 
         if (dadosAtualizados.status === 'Atrasada') {
             await tarefasService.processarAtrasoDeTarefa(id);
-            delete dadosAtualizados.status; // Remove do objeto, pois o service já atualizou o banco!
+            delete dadosAtualizados.status;
         }
 
         const tarefaAtualizada = await tarefasModel.atualizar(id, dadosAtualizados, responsaveis);

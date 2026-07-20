@@ -9,6 +9,9 @@ export default function Membros() {
   
   const [atualizarLista, setAtualizarLista] = useState(0);
 
+  // --- ESTADO DA BARRA DE PESQUISA ---
+  const [termoBusca, setTermoBusca] = useState('');
+
   // Estados do Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [membroSelecionado, setMembroSelecionado] = useState(null);
@@ -50,10 +53,23 @@ export default function Membros() {
     buscarMembros();
   }, [atualizarLista]); 
 
-  const ativos = membros.filter(m => m.status === 'Ativo' && m.hierarquia !== 'Agregado' && m.hierarquia !== 'Ex_morador');
-  const agregados = membros.filter(m => m.hierarquia === 'Agregado');
-  const exMoradores = membros.filter(m => m.hierarquia === 'Ex_morador');
-  const inativos = membros.filter(m => m.status !== 'Ativo' && m.hierarquia !== 'Ex_morador' && m.hierarquia !== 'Agregado');
+  // --- LÓGICA DE FILTRAGEM PELA BARRA DE PESQUISA ---
+  const membrosFiltrados = membros.filter((membro) => {
+    if (!termoBusca) return true;
+    
+    const termo = termoBusca.toLowerCase();
+    const matchApelido = membro.apelido?.toLowerCase().includes(termo);
+    const matchNome = membro.nome_completo?.toLowerCase().includes(termo);
+    const matchCurso = membro.curso?.toLowerCase().includes(termo);
+
+    return matchApelido || matchNome || matchCurso;
+  });
+
+  // Agora as listas separadas pegam de "membrosFiltrados" ao invés de "membros"
+  const ativos = membrosFiltrados.filter(m => m.status === 'Ativo' && m.hierarquia !== 'Agregado' && m.hierarquia !== 'Ex_morador');
+  const agregados = membrosFiltrados.filter(m => m.hierarquia === 'Agregado');
+  const exMoradores = membrosFiltrados.filter(m => m.hierarquia === 'Ex_morador');
+  const inativos = membrosFiltrados.filter(m => m.status !== 'Ativo' && m.hierarquia !== 'Ex_morador' && m.hierarquia !== 'Agregado');
 
   const handleOpenAcoes = (membro) => {
     setMembroSelecionado(membro);
@@ -152,7 +168,13 @@ export default function Membros() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-900/30 border border-gray-800 rounded-3xl p-4 md:px-6">
         <div className="relative flex-1 max-w-md">
           <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
-          <input type="text" placeholder="Buscar por apelido, nome ou curso..." className="w-full bg-gray-900 border border-gray-700 text-sm rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all text-gray-200 placeholder-gray-500" />
+          <input 
+            type="text" 
+            placeholder="Buscar por apelido, nome ou curso..." 
+            value={termoBusca}
+            onChange={(e) => setTermoBusca(e.target.value)} // Atualiza o estado da busca
+            className="w-full bg-gray-900 border border-gray-700 text-sm rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all text-gray-200 placeholder-gray-500" 
+          />
         </div>
         <button onClick={handleOpenNovo} className="flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-500 text-white px-6 py-3 rounded-xl font-medium transition-colors shadow-lg shadow-purple-600/20">
           <Plus className="w-5 h-5" /> Novo Membro
@@ -185,6 +207,13 @@ export default function Membros() {
           <h2 className="text-xl font-bold text-gray-500 mb-4 tracking-tight px-2">Moradores Inativos</h2>
           <MembrosTable data={inativos} onAcoes={handleOpenAcoes} />
         </section>
+      )}
+
+      {/* Caso a busca não retorne ninguém */}
+      {termoBusca && membrosFiltrados.length === 0 && (
+        <div className="text-center py-10 text-gray-500">
+          Nenhum membro encontrado para "{termoBusca}".
+        </div>
       )}
 
       {/* --- MODAL --- */}

@@ -1,4 +1,4 @@
-export default function KanbanCard({ tarefa, onClick, onDragStart}) {
+export default function KanbanCard({ tarefa, onClick, onDragStart, getMembroNome }) {
   const status = tarefa.status || 'Pendente';
 
   const getStatusStyle = () => {
@@ -7,6 +7,7 @@ export default function KanbanCard({ tarefa, onClick, onDragStart}) {
       case 'Em andamento': return 'text-purple-400 bg-purple-500/10 border-purple-500/20';
       case 'Atrasada': return 'text-red-400 bg-red-500/10 border-red-500/20';
       case 'Conclu_da':
+      case 'Concluida':
       case 'Concluída': return 'text-green-400 bg-green-500/10 border-green-500/20';
       default: return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
     }
@@ -21,18 +22,19 @@ export default function KanbanCard({ tarefa, onClick, onDragStart}) {
 
   const isUrgente = status === 'Atrasada';
 
+  // Usa a função getMembroNome se ela existir, senão usa o fallback antigo
   const siglasResponsaveis = tarefa.tarefas_responsaveis && tarefa.tarefas_responsaveis.length > 0
     ? tarefa.tarefas_responsaveis.map((tr, index) => {
-        return tr.membro?.apelido?.substring(0, 2).toUpperCase() || `M${index + 1}`;
+        const nomeReal = getMembroNome ? getMembroNome(tr.membro_id) : (tr.membro?.apelido || `M${index + 1}`);
+        return nomeReal.substring(0, 2).toUpperCase();
       })
     : [];
 
 return (
     <div 
-      draggable // <- Ativa o arrastar do HTML5
-      onDragStart={(e) => onDragStart(e, tarefa.id)} // <- Pega o ID na hora que começa a arrastar
+      draggable
+      onDragStart={(e) => onDragStart(e, tarefa.id)}
       onClick={() => onClick(tarefa)}
-      // Adicionado "active:cursor-grabbing" para o mouse virar a mãozinha fechada
       className="bg-gray-900 border border-gray-800 rounded-xl p-4 cursor-pointer hover:border-purple-500/50 hover:shadow-[0_0_15px_rgba(147,51,234,0.1)] transition-all flex flex-col gap-3 group relative overflow-hidden active:cursor-grabbing"
     >
       <div className={`absolute left-0 top-0 bottom-0 w-1 transition-colors ${isUrgente ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : 'bg-transparent group-hover:bg-purple-500/50'}`}></div>

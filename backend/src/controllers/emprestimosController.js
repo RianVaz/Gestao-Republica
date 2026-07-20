@@ -48,7 +48,8 @@ const criarEmprestimo = async (req, res) => {
         if (!item) {
             return res.status(404).json({ erro: 'Item não encontrado no inventário.' });
         }
-        if (item.status !== 'Disponível') {
+
+        if (item.status !== 'Dispon_vel' && item.status !== 'Disponível') {
             return res.status(400).json({ erro: `Este item não pode ser emprestado. Status atual: ${item.status}` });
         }
 
@@ -59,7 +60,7 @@ const criarEmprestimo = async (req, res) => {
             ...(previsao_devolucao && { previsao_devolucao: new Date(previsao_devolucao) })
         });
 
-        await itensModel.atualizar(item_id, { status: 'Emprestado' }); // Atualiza o status do item para "Emprestado" após a criação do empréstimo
+        await itensModel.atualizar(item_id, { status: 'Emprestado' }); 
 
         res.status(201).json(novoEmprestimo);
     } catch (erro) {
@@ -81,9 +82,11 @@ const atualizarEmprestimo = async (req, res) => {
         if (dadosAtualizados.previsao_devolucao) {
             dadosAtualizados.previsao_devolucao = new Date(dadosAtualizados.previsao_devolucao);
         }
+
+        // CORREÇÃO AQUI TAMBÉM: Se for devolvido, volta pro status 'Dispon_vel'
         if (dadosAtualizados.data_devolucao) {
             dadosAtualizados.data_devolucao = new Date(dadosAtualizados.data_devolucao);
-            await itensModel.atualizar(emprestimoAtual.item_id, { status: 'Disponível' });
+            await itensModel.atualizar(emprestimoAtual.item_id, { status: 'Dispon_vel' });
         }
 
         const emprestimoAtualizado = await emprestimosModel.atualizar(id, dadosAtualizados);

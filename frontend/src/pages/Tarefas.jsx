@@ -1,18 +1,20 @@
 import { useState, useEffect } from 'react';
 import { Search, Plus, X, AlignLeft, Clock, Users, CalendarCheck, User, Trash2 } from 'lucide-react';
 import KanbanCard from '../components/KanbanCard';
-
-// SIMULAÇÃO DE LOGIN: Coloque aqui o ID do usuário que está usando o sistema no momento.
-// Apenas tarefas criadas por este ID poderão ser editadas e apagadas.
-const USUARIO_LOGADO_ID = 2; 
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Tarefas() {
+  const { usuario } = useAuth();
+  const USUARIO_LOGADO_ID = usuario.id;
   const [tarefas, setTarefas] = useState([]);
   const [membros, setMembros] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState(null);
   const [atualizarLista, setAtualizarLista] = useState(0);
   
+  // --- ESTADO DA BARRA DE PESQUISA ---
+  const [termoBusca, setTermoBusca] = useState('');
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [tarefaSelecionada, setTarefaSelecionada] = useState(null);
   const [modalView, setModalView] = useState('view'); // 'view', 'create', 'edit'
@@ -39,12 +41,9 @@ export default function Tarefas() {
         const dadosMembros = await resMembros.json();
         
         setTarefas(dadosTarefas);
-        // Filtramos apenas membros ativos, excluindo agregados e ex-moradores
-        setMembros(dadosMembros.filter(m => 
-          m.status?.toLowerCase() === 'ativo' && 
-          m.hierarquia !== 'Agregado' && 
-          m.hierarquia !== 'Ex_morador'
-        ));
+        
+        // Mantém todos os membros (para exibir o histórico mesmo se alguém for inativo)
+        setMembros(dadosMembros);
       } catch (err) {
         setErro(err.message);
       } finally {
@@ -55,11 +54,37 @@ export default function Tarefas() {
     buscarDados();
   }, [atualizarLista]);
 
-  // Divisão das colunas baseada nos Enums corretos do banco
-  const pendentes = tarefas.filter(t => t.status === 'Pendente');
-  const emAndamento = tarefas.filter(t => t.status === 'Em_Andamento' || t.status === 'Em andamento' || t.status === 'Em_andamento');
-  const atrasadas = tarefas.filter(t => t.status === 'Atrasada');
-  const concluidas = tarefas.filter(t => t.status === 'Conclu_da' || t.status === 'Concluída' || t.status === 'Concluida');
+  // Função para resgatar o nome do membro pelo ID
+  const getMembroNome = (id) => membros.find(m => m.id === id)?.apelido || `Membro ${id}`;
+
+  // Lista de membros ativos para o formulário de criação/edição
+  const membrosAtivos = membros.filter(m => 
+    m.status?.toLowerCase() === 'ativo' && 
+    m.hierarquia !== 'Agregado' && 
+    m.hierarquia !== 'Ex_morador'
+  );
+
+  // --- LÓGICA DE FILTRAGEM PELA BARRA DE PESQUISA ---
+  const tarefasFiltradas = tarefas.filter((tarefa) => {
+    if (!termoBusca) return true;
+    
+    const termo = termoBusca.toLowerCase();
+    const matchTitulo = tarefa.titulo?.toLowerCase().includes(termo);
+    const matchDescricao = tarefa.descricao?.toLowerCase().includes(termo);
+    
+    // Busca também pelo apelido (usando nossa função getMembroNome para pegar o real)
+    const matchResponsavel = tarefa.tarefas_responsaveis?.some(tr => 
+      getMembroNome(tr.membro_id).toLowerCase().includes(termo)
+    );
+
+    return matchTitulo || matchDescricao || matchResponsavel;
+  });
+
+  // Divisão das colunas baseada nas tarefas FILTRADAS
+  const pendentes = tarefasFiltradas.filter(t => t.status === 'Pendente');
+  const emAndamento = tarefasFiltradas.filter(t => t.status === 'Em_Andamento' || t.status === 'Em andamento' || t.status === 'Em_andamento');
+  const atrasadas = tarefasFiltradas.filter(t => t.status === 'Atrasada');
+  const concluidas = tarefasFiltradas.filter(t => t.status === 'Conclu_da' || t.status === 'Concluída' || t.status === 'Concluida');
 
   const formatarDataCompleta = (dataIso) => {
     if (!dataIso) return 'Sem data definida';
@@ -126,7 +151,7 @@ export default function Tarefas() {
     }
   };
 
-  // --- DRAG AND DROP (ARRASTAR E SOLTAR) ---
+  // --- DRAG AND DROP ---
   const handleDragStart = (e, id) => {
     e.dataTransfer.setData('tarefaId', id);
   };
@@ -140,7 +165,6 @@ export default function Tarefas() {
     const tarefaId = e.dataTransfer.getData('tarefaId');
     if (!tarefaId) return;
 
-    // Atualização otimista (muda na tela na mesma hora, antes do banco responder)
     setTarefas(prev => prev.map(t => 
       t.id === Number(tarefaId) ? { ...t, status: novoStatus } : t
     ));
@@ -190,7 +214,6 @@ export default function Tarefas() {
       ? `http://localhost:3001/tarefas/${tarefaSelecionada.id}` 
       : 'http://localhost:3001/tarefas';
     
-    // O Prisma exige números para as relações
     const responsaveisNumeros = formData.responsaveis.map(id => Number(id));
 
     const payload = {
@@ -201,12 +224,10 @@ export default function Tarefas() {
       responsaveis: responsaveisNumeros
     };
 
-    // Só envia o criador se for uma tarefa nova (Criação)
     if (!isEditing) {
       payload.criador_id = USUARIO_LOGADO_ID;
     }
 
-    // Envia a data de conclusão se a tarefa foi finalizada pelo formulário
     if (formData.status === 'Conclu_da') {
       payload.data_conclusao = new Date().toISOString();
     }
@@ -241,18 +262,30 @@ export default function Tarefas() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-900/30 border border-gray-800 rounded-3xl p-4 md:px-6 shrink-0">
         <div className="relative flex-1 max-w-md">
           <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
-          <input type="text" placeholder="Buscar tarefas..." className="w-full bg-gray-900 border border-gray-700 text-sm rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-purple-500 text-gray-200" />
+          <input 
+            type="text" 
+            placeholder="Buscar por título, descrição ou responsável..." 
+            value={termoBusca}
+            onChange={(e) => setTermoBusca(e.target.value)} 
+            className="w-full bg-gray-900 border border-gray-700 text-sm rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-purple-500 text-gray-200" 
+          />
         </div>
         <button onClick={handleOpenCreate} className="flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-500 text-white px-6 py-3 rounded-xl font-medium transition-colors shadow-lg shadow-purple-600/20">
           <Plus className="w-5 h-5" /> Nova Tarefa
         </button>
       </div>
 
+      {/* Alerta de busca sem resultados */}
+      {termoBusca && tarefasFiltradas.length === 0 && (
+        <div className="text-center py-4 text-gray-500 text-sm">
+          Nenhuma tarefa encontrada para "{termoBusca}".
+        </div>
+      )}
+
       {/* Quadro Kanban */}
       <div className="flex-1 overflow-x-auto custom-scrollbar pb-4">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 min-w-[1000px] xl:min-w-0 h-full">
           
-          {/* Coluna 1: Pendentes */}
           <div 
             className="bg-gray-900/20 rounded-2xl p-4 border border-gray-800/50 flex flex-col h-full transition-colors hover:bg-gray-800/30"
             onDragOver={handleDragOver}
@@ -263,11 +296,10 @@ export default function Tarefas() {
               <span className="text-xs font-bold text-gray-500 bg-gray-800 px-2.5 py-1 rounded-full">{pendentes.length}</span>
             </div>
             <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar pr-1">
-              {pendentes.map(t => <KanbanCard key={t.id} tarefa={t} onClick={handleOpenView} onDragStart={handleDragStart} />)}
+              {pendentes.map(t => <KanbanCard key={t.id} tarefa={t} onClick={handleOpenView} onDragStart={handleDragStart} getMembroNome={getMembroNome} />)}
             </div>
           </div>
 
-          {/* Coluna 2: Em andamento */}
           <div 
             className="bg-gray-900/20 rounded-2xl p-4 border border-gray-800/50 flex flex-col h-full transition-colors hover:bg-gray-800/30"
             onDragOver={handleDragOver}
@@ -278,11 +310,10 @@ export default function Tarefas() {
               <span className="text-xs font-bold text-gray-500 bg-gray-800 px-2.5 py-1 rounded-full">{emAndamento.length}</span>
             </div>
             <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar pr-1">
-              {emAndamento.map(t => <KanbanCard key={t.id} tarefa={t} onClick={handleOpenView} onDragStart={handleDragStart} />)}
+              {emAndamento.map(t => <KanbanCard key={t.id} tarefa={t} onClick={handleOpenView} onDragStart={handleDragStart} getMembroNome={getMembroNome} />)}
             </div>
           </div>
 
-          {/* Coluna 3: Atrasadas */}
           <div 
             className="bg-gray-900/20 rounded-2xl p-4 border border-gray-800/50 flex flex-col h-full transition-colors hover:bg-gray-800/30"
             onDragOver={handleDragOver}
@@ -293,11 +324,10 @@ export default function Tarefas() {
               <span className="text-xs font-bold text-gray-500 bg-gray-800 px-2.5 py-1 rounded-full">{atrasadas.length}</span>
             </div>
             <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar pr-1">
-              {atrasadas.map(t => <KanbanCard key={t.id} tarefa={t} onClick={handleOpenView} onDragStart={handleDragStart} />)}
+              {atrasadas.map(t => <KanbanCard key={t.id} tarefa={t} onClick={handleOpenView} onDragStart={handleDragStart} getMembroNome={getMembroNome} />)}
             </div>
           </div>
 
-          {/* Coluna 4: Concluídas */}
           <div 
             className="bg-gray-900/20 rounded-2xl p-4 border border-gray-800/50 flex flex-col h-full transition-colors hover:bg-gray-800/30"
             onDragOver={handleDragOver}
@@ -308,7 +338,7 @@ export default function Tarefas() {
               <span className="text-xs font-bold text-gray-500 bg-gray-800 px-2.5 py-1 rounded-full">{concluidas.length}</span>
             </div>
             <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar pr-1">
-              {concluidas.map(t => <KanbanCard key={t.id} tarefa={t} onClick={handleOpenView} onDragStart={handleDragStart} />)}
+              {concluidas.map(t => <KanbanCard key={t.id} tarefa={t} onClick={handleOpenView} onDragStart={handleDragStart} getMembroNome={getMembroNome} />)}
             </div>
           </div>
 
@@ -351,7 +381,7 @@ export default function Tarefas() {
                     </div>
                   </div>
 
-                  {/* Exibição dos Responsáveis e Criador */}
+                  {/* Exibição dos Responsáveis e Criador com getMembroNome */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-800/50">
                     <div className="space-y-3">
                        <h4 className="text-sm font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wider">
@@ -360,7 +390,7 @@ export default function Tarefas() {
                       <div className="flex flex-wrap gap-2">
                         {tarefaSelecionada.tarefas_responsaveis?.map((tr, idx) => (
                           <span key={idx} className="bg-purple-500/10 border border-purple-500/20 text-purple-400 px-3 py-1 rounded-lg text-sm">
-                            {tr.membro?.apelido || `Membro ${tr.membro_id}`}
+                            {getMembroNome(tr.membro_id)}
                           </span>
                         ))}
                       </div>
@@ -370,8 +400,7 @@ export default function Tarefas() {
                         <User className="w-4 h-4" /> Criada por
                       </h4>
                       <div className="flex items-center gap-2 text-gray-300 font-medium">
-                        {/* Utilizando a nomenclatura exata do Prisma para puxar o apelido do criador */}
-                        {tarefaSelecionada.membros_tarefas_criador_idTomembros?.apelido || `ID ${tarefaSelecionada.criador_id}`}
+                        {getMembroNome(tarefaSelecionada.criador_id)}
                       </div>
                     </div>
                   </div>
@@ -414,7 +443,7 @@ export default function Tarefas() {
                   <div>
                     <label className="block text-sm font-medium text-gray-400 mb-2">Responsáveis *</label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-gray-800/30 p-3 rounded-xl border border-gray-700/50 max-h-40 overflow-y-auto custom-scrollbar">
-                      {membros.map(membro => (
+                      {membrosAtivos.map(membro => (
                         <div 
                           key={membro.id} 
                           onClick={() => handleResponsavelToggle(membro.id)} 
@@ -441,7 +470,7 @@ export default function Tarefas() {
             {/* --- FOOTER DO MODAL --- */}
             <div className="p-6 border-t border-gray-800 bg-gray-900/50 shrink-0 flex justify-end gap-3">
               
-              {/* Botão de Apagar (Aparece apenas para o criador e na aba de visualização) */}
+              {/* Botão de Apagar */}
               {modalView === 'view' && tarefaSelecionada?.criador_id === USUARIO_LOGADO_ID && (
                 <button 
                   onClick={handleDelete} 
@@ -455,7 +484,7 @@ export default function Tarefas() {
                 {modalView === 'view' ? 'Fechar' : 'Cancelar'}
               </button>
               
-              {/* Botão Dinâmico (Editar ou Salvar) */}
+              {/* Botão Dinâmico */}
               {modalView === 'view' && tarefaSelecionada?.criador_id === USUARIO_LOGADO_ID && (
                 <button onClick={handleOpenEdit} className="px-5 py-2.5 rounded-xl font-medium bg-purple-600 hover:bg-purple-500 text-white transition-colors shadow-lg shadow-purple-600/20">
                   Editar Tarefa

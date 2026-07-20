@@ -3,8 +3,8 @@ const prisma = require('../config/prisma');
 const tarefasService = require('../services/tarefasService'); // ⬅️ Importando o nosso Service
 
 const iniciarRoboDeTarefas = () => {
-    cron.schedule('0 0 * * *', async () => {
-        console.log('🤖 [Cron Job] Verificando tarefas atrasadas...');
+    cron.schedule('*  * * * *', async () => {
+        console.log('[Cron Job] Verificando tarefas atrasadas...');
 
         try {
             const dataAtual = new Date();

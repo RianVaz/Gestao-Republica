@@ -10,6 +10,9 @@ export default function Punicoes() {
   const [erro, setErro] = useState(null);
   const [atualizarLista, setAtualizarLista] = useState(0);
 
+  // --- ESTADO DA BARRA DE PESQUISA ---
+  const [termoBusca, setTermoBusca] = useState('');
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [punicaoSelecionada, setPunicaoSelecionada] = useState(null);
   const [modalView, setModalView] = useState('view'); 
@@ -51,8 +54,27 @@ export default function Punicoes() {
     buscarDados();
   }, [atualizarLista]);
 
+  // Funções para resgatar os nomes reais cruzando os IDs
+  const getMembroNome = (id) => membros.find(m => m.id === id)?.apelido || `Membro ID ${id}`;
+  const getTarefaNome = (id) => tarefas.find(t => t.id === id)?.titulo || `Tarefa ID ${id}`;
+
+  // --- LÓGICA DE FILTRAGEM PELA BARRA DE PESQUISA ---
+  const punicoesFiltradas = punicoes.filter((punicao) => {
+    if (!termoBusca) return true;
+    
+    const termo = termoBusca.toLowerCase();
+    const matchMotivo = punicao.motivo?.toLowerCase().includes(termo);
+    
+    // Busca também pelo apelido/nome do morador usando a função getMembroNome
+    const nomeMorador = getMembroNome(punicao.membro_id).toLowerCase();
+    const matchMorador = nomeMorador.includes(termo);
+
+    return matchMotivo || matchMorador;
+  });
+
   // --- REGRAS DE EXIBIÇÃO E ORDENAÇÃO ---
-  const punicoesOrdenadas = [...punicoes].sort((a, b) => new Date(b.data_aplicacao) - new Date(a.data_aplicacao));
+  // Agora ordena as punições FILTRADAS
+  const punicoesOrdenadas = [...punicoesFiltradas].sort((a, b) => new Date(b.data_aplicacao) - new Date(a.data_aplicacao));
 
   const membrosAtivos = membros.filter(m => 
     m.status?.toLowerCase() === 'ativo' && m.hierarquia !== 'Agregado' && m.hierarquia !== 'Ex_morador'
@@ -81,9 +103,6 @@ export default function Punicoes() {
     if (!dataIso) return '';
     return dataIso.split('T')[0];
   };
-
-  const getMembroNome = (id) => membros.find(m => m.id === id)?.apelido || `Membro ID ${id}`;
-  const getTarefaNome = (id) => tarefas.find(t => t.id === id)?.titulo || `Tarefa ID ${id}`;
 
   // --- NAVEGAÇÃO DO MODAL ---
   const handleOpenView = (punicao) => {
@@ -175,12 +194,25 @@ export default function Punicoes() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-900/30 border border-gray-800 rounded-3xl p-4 md:px-6 shrink-0">
         <div className="relative flex-1 max-w-md">
           <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
-          <input type="text" placeholder="Buscar por morador ou motivo..." className="w-full bg-gray-900 border border-gray-700 text-sm rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-red-500 text-gray-200" />
+          <input 
+            type="text" 
+            placeholder="Buscar por morador ou motivo..." 
+            value={termoBusca}
+            onChange={(e) => setTermoBusca(e.target.value)} // Vincula a busca aqui
+            className="w-full bg-gray-900 border border-gray-700 text-sm rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-red-500 text-gray-200" 
+          />
         </div>
         <button onClick={handleOpenCreate} className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 text-white px-6 py-3 rounded-xl font-medium transition-colors shadow-lg shadow-red-600/20">
           <Plus className="w-5 h-5" /> Nova Punição
         </button>
       </div>
+
+      {/* Alerta de busca sem resultados */}
+      {termoBusca && punicoesFiltradas.length === 0 && (
+        <div className="text-center py-4 text-gray-500 text-sm">
+          Nenhuma punição encontrada para "{termoBusca}".
+        </div>
+      )}
 
       {/* Mural de Punições por Morador */}
       {rankingPunicoes.length > 0 && (
