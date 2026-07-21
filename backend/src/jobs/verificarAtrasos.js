@@ -1,9 +1,9 @@
 const cron = require('node-cron');
 const prisma = require('../config/prisma');
-const tarefasService = require('../services/tarefasService'); // ⬅️ Importando o nosso Service
+const tarefasService = require('../services/tarefasService');
 
 const iniciarRoboDeTarefas = () => {
-    cron.schedule('*  * * * *', async () => {
+    cron.schedule('0 0 * * *', async () => {
         console.log('[Cron Job] Verificando tarefas atrasadas...');
 
         try {
