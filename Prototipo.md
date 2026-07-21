@@ -24,7 +24,7 @@ Neste trabalho não serão considerados:
 * **Comunicação Interna:** Não será desenvolvido um chat ou fórum interno para comunicação entre os moradores dentro da plataforma.
 
 ### 4. Protótipo
-Protótipos para as páginas (Visão Geral/Dashboard, Moradores, Tarefas, Punições e Empréstimos) foram elaborados visando uma interface limpa e responsiva. Os layouts (wireframes e alta fidelidade) e o fluxo de navegação podem ser encontrados na ferramenta de design Figma através do link: `[Inserir Link do Figma/Repositório Aqui]`.
+Protótipos para as páginas (Visão Geral/Dashboard, Moradores, Tarefas, Punições e Empréstimos) foram elaborados visando uma interface limpa e responsiva.
 
 ### 5. Referências
 * NODE.JS. **Node.js Documentation**. Disponível em: https://nodejs.org/docs/. Acesso em: jul. 2026.
